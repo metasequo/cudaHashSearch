@@ -31,9 +31,9 @@ __global__ void gHashCalc(char *text, int *length, unsigned int *rehash)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int scan_idx;
-  
+
 	rehash[col_idx] = 0;
-  
+
 	for (scan_idx = 0; scan_idx < *length; scan_idx++)
 	{
 		rehash[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
@@ -43,5 +43,5 @@ __global__ void gHashCalc(char *text, int *length, unsigned int *rehash)
 	__syncthreads();
 }
 ```
-ハッシュ値は、パターン文字列長回ループする中での総和としている。  
-何文字目かに素数を掛け、更に文字コードを掛けることで、ハッシュ値の衝突が少なくなるようにしている。
+ハッシュ値は、パターン文字列長回ループする中での総和としている。
+何文字目なのかに素数(このプログラムでは257)を掛け、更に文字コードを掛けることで、ハッシュ値の衝突が少なくなるようにしている。
