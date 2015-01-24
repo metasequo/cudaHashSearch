@@ -11,12 +11,12 @@ using namespace std;
 #define GRID_SIZE 16
 
 //int HashCalc(char *text, int length);
-__host__ void hHashCalc(char *text, int length, int *rehash);
-__global__ void gHashCalc(char *text, int *length, int *rehash);
-__device__ void dHashCalc(char *text, int *length, int *rehash);
+__host__ void hHashCalc(char *text, int length, unsigned int *rehash);
+__global__ void gHashCalc(char *text, int *length, unsigned int *rehash);
+__device__ void dHashCalc(char *text, int *length, unsigned int *rehash);
 // void textHash(char *text, int textlen, int texthas [], int patlen);
-__global__ void textHash(char *text, int *textlen, int *texthas, int *patlen);
-void HashSearch(char *text, int textlen, int texthas [], char *pattern, int patlen, int pathas, int flag []);
+__global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen);
+void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, int flag []);
 void Emphasis(char *text, int textlen, int patlen, int flag [], int Count);
 void InsertChar(char *text, char *shift, int flag [], int mem [], int *counter, char *insert);
 void ShiftChar(char *text, char *shift1, char *shift2, int flag [], int mem1 [], int mem2 [], int *counter, int inslen, int looptimes);
@@ -25,7 +25,7 @@ int main(){
 	char text[SIZE], pattern[SIZE];
 	string inputtext;
 	int textlen[1], patlen[1];
-	int texthas[SIZE * 2] = { 0 }, pathas[1] = { 0 };
+	unsigned int texthas[SIZE * 2] = { 0 }, pathas[1] = { 0 };
 	int FoundFlag[SIZE] = { 0 }, FoundCount = 0;
 	int i;
 	cout << "*Please input text." << endl;
@@ -56,7 +56,7 @@ int main(){
 
 		//GPU
 		char *dText, *dPattern;
-		int *dTexthas, *dPathas;
+		unsigned int *dTexthas, *dPathas;
 		int *dTextlen, *dPatlen;
 		//		int *dFoundFlag;
 
@@ -64,10 +64,10 @@ int main(){
 		cudaMemcpy(dText, text, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
 		cudaMalloc((void**) &dPattern, sizeof(char)*SIZE);
 		cudaMemcpy(dPattern, pattern, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dTexthas, sizeof(int)*SIZE);
-		cudaMemcpy(dTexthas, texthas, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dPathas, sizeof(int)*SIZE);
-		cudaMemcpy(dPathas, pathas, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
+		cudaMalloc((void**) &dTexthas, sizeof(unsigned int)*SIZE);
+		cudaMemcpy(dTexthas, texthas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
+		cudaMalloc((void**) &dPathas, sizeof(unsigned int)*SIZE);
+		cudaMemcpy(dPathas, pathas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
 		cudaMalloc((void**) &dTextlen, sizeof(int)*SIZE);
 		cudaMemcpy(dTextlen, textlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
 		cudaMalloc((void**) &dPatlen, sizeof(int)*SIZE);
@@ -79,10 +79,10 @@ int main(){
 		dim3 grid(GRID_SIZE);
 		dim3 block(BLOCK_SIZE);
 
-		gHashCalc <<<grid, block >>>(dPattern, dPatlen, dPathas);
+		gHashCalc << <grid, block >> >(dPattern, dPatlen, dPathas);
 		cudaThreadSynchronize();
 
-		cudaMemcpy(pathas, dPathas, sizeof(int), cudaMemcpyDeviceToHost);
+		cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 		cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
 
 		//hHashCalc(pattern, patlen[0], pathas);
@@ -91,17 +91,17 @@ int main(){
 		cout << "*Finding..." << endl;
 
 
-		textHash <<<grid, block >>>(dText, dTextlen, dTexthas, dPatlen);
+		textHash << <grid, block >> >(dText, dTextlen, dTexthas, dPatlen);
 		cudaThreadSynchronize();
 
-		cudaMemcpy(texthas, dTexthas, sizeof(int)*SIZE, cudaMemcpyDeviceToHost);
+		cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
 
 
 		HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
 		for (i = 0; i < textlen[0]; i++){
-			cout << "*Text Hash(";
-			for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
-			cout << ") = " << texthas[i] << endl;
+			//cout << "*Text Hash(";
+			//for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
+			//cout << ") = " << texthas[i] << endl;
 			if (FoundFlag[i] == 1)	FoundCount++;
 
 		}
@@ -127,7 +127,7 @@ int main(){
 	return 0;
 }
 
-__host__ void hHashCalc(char *text, int length, int *rehash)
+__host__ void hHashCalc(char *text, int length, unsigned int *rehash)
 {
 	int scan_idx;
 	*rehash = 0;
@@ -147,7 +147,7 @@ __host__ void hHashCalc(char *text, int length, int *rehash)
 
 }
 
-__global__ void gHashCalc(char *text, int *length, int *rehash)
+__global__ void gHashCalc(char *text, int *length, unsigned int *rehash)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int scan_idx;
@@ -163,7 +163,7 @@ __global__ void gHashCalc(char *text, int *length, int *rehash)
 	__syncthreads();
 }
 
-__device__ void dHashCalc(char *text, int *length, int *rehash)
+__device__ void dHashCalc(char *text, int *length, unsigned int *rehash)
 {
 	//	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int scan_idx;
@@ -184,7 +184,7 @@ __device__ void dHashCalc(char *text, int *length, int *rehash)
 	*/
 }
 
-__global__ void textHash(char *text, int *textlen, int *texthas, int *patlen)
+__global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int scan_idx;
@@ -202,7 +202,7 @@ __global__ void textHash(char *text, int *textlen, int *texthas, int *patlen)
 	__syncthreads();
 }
 
-void HashSearch(char *text, int textlen, int texthas [], char *pattern, int patlen, int pathas, int flag [])
+void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, int flag [])
 {
 	int i, j;
 
