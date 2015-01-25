@@ -5,9 +5,9 @@
 
 using namespace std;
 
-#define	RADIX 257
+#define	RADIX 8209
 #define SIZE 4096
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 256
 #define GRID_SIZE 16
 
 //int HashCalc(char *text, int length);
@@ -22,7 +22,7 @@ void InsertChar(char *text, char *shift, int flag [], int mem [], int *counter, 
 void ShiftChar(char *text, char *shift1, char *shift2, int flag [], int mem1 [], int mem2 [], int *counter, int inslen, int looptimes);
 
 int main(){
-	char text[SIZE], pattern[SIZE];
+	char text[SIZE * 2], pattern[SIZE];
 	string inputtext;
 	int textlen[1], patlen[1];
 	unsigned int texthas[SIZE * 2] = { 0 }, pathas[1] = { 0 };
@@ -30,11 +30,13 @@ int main(){
 	int i;
 	cout << "*Please input text." << endl;
 	getline(cin, inputtext);
-	cout << endl << "*Please input pattern." << endl;
-	cin >> pattern;
-
 	const char *convert = inputtext.c_str();
 	strcpy(text, convert);
+
+	cout << endl << "*Please input pattern." << endl;
+	getline(cin, inputtext);
+	convert = inputtext.c_str();
+	strcpy(pattern, convert);
 
 	textlen[0] = strlen(text);
 	patlen[0] = strlen(pattern);
@@ -187,14 +189,14 @@ __device__ void dHashCalc(char *text, int *length, unsigned int *rehash)
 __global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
-	unsigned int scan_idx;
+	unsigned int loop, scan_idx;
 
 
-	for (scan_idx = 0; scan_idx < *textlen /*- *patlen + 1*/; scan_idx++){
+	for (loop = 0; loop < *textlen /*- *patlen + 1*/; loop++){
 		//		dHashCalc(&text[scan_idx], patlen, &texthas[scan_idx]);
 		texthas[col_idx] = 0;
-		for (int i = 0; i < *patlen; i++){
-			texthas[col_idx] += ((i + 1) * RADIX) * text[col_idx + i];
+		for (int scan_idx = 0; scan_idx < *patlen; scan_idx++){
+			texthas[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
 			__syncthreads();
 		}
 		__syncthreads();
