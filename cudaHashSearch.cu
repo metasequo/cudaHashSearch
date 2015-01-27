@@ -49,7 +49,7 @@ int main(){
 	}
 	*/
 
-	if (textlen < patlen)
+	if (textlen[0] < patlen[0])
 	{
 		cout << "**Search pattern is larger than the text size.**" << endl;
 	}
@@ -81,7 +81,7 @@ int main(){
 		dim3 grid(GRID_SIZE);
 		dim3 block(BLOCK_SIZE);
 
-		gHashCalc << <grid, block >> >(dPattern, dPatlen, dPathas);
+		gHashCalc <<<grid, block >>>(dPattern, dPatlen, dPathas);
 		cudaThreadSynchronize();
 
 		cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -93,7 +93,7 @@ int main(){
 		cout << "*Finding..." << endl;
 
 
-		textHash << <grid, block >> >(dText, dTextlen, dTexthas, dPatlen);
+		textHash <<<grid, block >>>(dText, dTextlen, dTexthas, dPatlen);
 		cudaThreadSynchronize();
 
 		cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
