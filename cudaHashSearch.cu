@@ -70,23 +70,49 @@ int main(){
 	//		cudaMalloc((void**) &dFoundFlag, textlen);
 	//		cudaMemcpy(dFoundFlag, FoundFlag, textlen, cudaMemcpyHostToDevice);
 
+
 	dim3 grid(GRID_SIZE);
 	dim3 block(BLOCK_SIZE);
+
+//タイマーの設定
+	cout << "Calculation start in the GPU." << endl;
+	cout << "BlockSize\t:\t" << BLOCK_SIZE << "\nGridSize\t:\t" << GRID_SIZE << endl;
+	float millseconds = 0.0f;
+//	float sum = 0.0f;
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
+//パターンのハッシュ値計算
+	cudaEventRecord(start, 0);
 
 	gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
 	cudaThreadSynchronize();
 
 	cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&millseconds, start, stop);
+	cout << "Time required\t:\t" << millseconds << " millseconds" << endl;
+
 	cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
 
-	cout << "*Finding..." << endl;
-
+//テキストのハッシュ値計算
+	cudaEventRecord(start, 0);
 
 	textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
 	cudaThreadSynchronize();
 
 	cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
 
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&millseconds, start, stop);
+	cout << "Time required\t:\t" << millseconds << " millseconds" << endl;
+
+//ハッシュ値比較
+	cout << "*Finding..." << endl;
 
 	HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
 	for (i = 0; i < textlen[0]; i++){
