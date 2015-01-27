@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 13.00
 # Visual Studio 2013
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "template", "template_vs2013.vcxproj", "{997E0757-EA74-4A4E-A0FC-47D8C8831A15}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cudaHashSearch", "cudaHashSearch.vcxproj", "{997E0757-EA74-4A4E-A0FC-47D8C8831A15}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

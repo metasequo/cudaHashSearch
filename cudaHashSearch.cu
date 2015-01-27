@@ -32,98 +32,83 @@ int main(){
 	getline(cin, inputtext);
 	const char *convert = inputtext.c_str();
 	strcpy(text, convert);
-
-	cout << endl << "*Please input pattern." << endl;
-	getline(cin, inputtext);
-	convert = inputtext.c_str();
-	strcpy(pattern, convert);
-
 	textlen[0] = strlen(text);
-	patlen[0] = strlen(pattern);
 
-	/*
-	for(i = 0; i < patlen; i++)
-	{
-	FoundFlag[i] = HashCalc(&pattern[i], 1);
-	cout << "Hash(" << patterin[i] << ") = " << FoundFlag[i] << endl;
+	do{
+		cout << endl << "*Please input pattern." << endl;
+		getline(cin, inputtext);
+		convert = inputtext.c_str();
+		strcpy(pattern, convert);
+		patlen[0] = strlen(pattern);
+
+
+		if (textlen[0] < patlen[0])
+		{
+			cout << "**Search pattern is larger than the text size.**" << endl;
+		}
+	} while (textlen[0] < patlen[0]);
+
+	//GPU—p•Ï”
+	char *dText, *dPattern;
+	unsigned int *dTexthas, *dPathas;
+	int *dTextlen, *dPatlen;
+	//		int *dFoundFlag;
+
+	cudaMalloc((void**) &dText, sizeof(char)*SIZE);
+	cudaMemcpy(dText, text, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dPattern, sizeof(char)*SIZE);
+	cudaMemcpy(dPattern, pattern, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dTexthas, sizeof(unsigned int)*SIZE);
+	cudaMemcpy(dTexthas, texthas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dPathas, sizeof(unsigned int)*SIZE);
+	cudaMemcpy(dPathas, pathas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dTextlen, sizeof(int)*SIZE);
+	cudaMemcpy(dTextlen, textlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dPatlen, sizeof(int)*SIZE);
+	cudaMemcpy(dPatlen, patlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
+
+	//		cudaMalloc((void**) &dFoundFlag, textlen);
+	//		cudaMemcpy(dFoundFlag, FoundFlag, textlen, cudaMemcpyHostToDevice);
+
+	dim3 grid(GRID_SIZE);
+	dim3 block(BLOCK_SIZE);
+
+	gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
+	cudaThreadSynchronize();
+
+	cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
+
+	cout << "*Finding..." << endl;
+
+
+	textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
+	cudaThreadSynchronize();
+
+	cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
+
+
+	HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
+	for (i = 0; i < textlen[0]; i++){
+		//cout << "*Text Hash(";
+		//for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
+		//cout << ") = " << texthas[i] << endl;
+		if (FoundFlag[i] == 1)	FoundCount++;
 	}
-	*/
-
-	if (textlen[0] < patlen[0])
+	cout << "*FoundCount = " << FoundCount << endl;
+	if (FoundCount != 0)
 	{
-		cout << "**Search pattern is larger than the text size.**" << endl;
+		Emphasis(text, textlen[0], patlen[0], FoundFlag, FoundCount);
+		cout << endl << "**Found!!**" << endl << text << endl;
 	}
 	else
 	{
-
-		//GPU
-		char *dText, *dPattern;
-		unsigned int *dTexthas, *dPathas;
-		int *dTextlen, *dPatlen;
-		//		int *dFoundFlag;
-
-		cudaMalloc((void**) &dText, sizeof(char)*SIZE);
-		cudaMemcpy(dText, text, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dPattern, sizeof(char)*SIZE);
-		cudaMemcpy(dPattern, pattern, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dTexthas, sizeof(unsigned int)*SIZE);
-		cudaMemcpy(dTexthas, texthas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dPathas, sizeof(unsigned int)*SIZE);
-		cudaMemcpy(dPathas, pathas, sizeof(unsigned int)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dTextlen, sizeof(int)*SIZE);
-		cudaMemcpy(dTextlen, textlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
-		cudaMalloc((void**) &dPatlen, sizeof(int)*SIZE);
-		cudaMemcpy(dPatlen, patlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
-
-		//		cudaMalloc((void**) &dFoundFlag, textlen);
-		//		cudaMemcpy(dFoundFlag, FoundFlag, textlen, cudaMemcpyHostToDevice);
-
-		dim3 grid(GRID_SIZE);
-		dim3 block(BLOCK_SIZE);
-
-		gHashCalc <<<grid, block >>>(dPattern, dPatlen, dPathas);
-		cudaThreadSynchronize();
-
-		cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-		cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
-
-		//hHashCalc(pattern, patlen[0], pathas);
-		//cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
-
-		cout << "*Finding..." << endl;
-
-
-		textHash <<<grid, block >>>(dText, dTextlen, dTexthas, dPatlen);
-		cudaThreadSynchronize();
-
-		cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
-
-
-		HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
-		for (i = 0; i < textlen[0]; i++){
-			//cout << "*Text Hash(";
-			//for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
-			//cout << ") = " << texthas[i] << endl;
-			if (FoundFlag[i] == 1)	FoundCount++;
-
-		}
-		cout << "*FoundCount = " << FoundCount << endl;
-		if (FoundCount != 0)
-		{
-			Emphasis(text, textlen[0], patlen[0], FoundFlag, FoundCount);
-			cout << endl << "**Found!!**" << endl << text << endl;
-		}
-		else
-		{
-			cout << endl << "**Not found**" << endl;
-		}
-
-		cudaFree(dText);
-		cudaFree(dPattern);
-		cudaFree(dTexthas);
-
+		cout << endl << "**Not found**" << endl;
 	}
 
+	cudaFree(dText);
+	cudaFree(dPattern);
+	cudaFree(dTexthas);
 
 
 	return 0;
@@ -189,13 +174,13 @@ __device__ void dHashCalc(char *text, int *length, unsigned int *rehash)
 __global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
-	unsigned int loop, scan_idx;
+	int loop, scan_idx;
 
 
-	for (loop = 0; loop < *textlen /*- *patlen + 1*/; loop++){
+	for (loop = 0; loop < *textlen - *patlen + 1; loop++){
 		//		dHashCalc(&text[scan_idx], patlen, &texthas[scan_idx]);
 		texthas[col_idx] = 0;
-		for (int scan_idx = 0; scan_idx < *patlen; scan_idx++){
+		for (scan_idx = 0; scan_idx < *patlen; scan_idx++){
 			texthas[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
 			__syncthreads();
 		}
