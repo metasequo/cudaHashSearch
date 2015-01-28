@@ -5,9 +5,9 @@
 
 using namespace std;
 
-#define	RADIX 8209
-#define SIZE 4096
-#define BLOCK_SIZE 256
+#define	RADIX 257
+#define SIZE 8192
+#define BLOCK_SIZE 512
 #define GRID_SIZE 16
 
 //int HashCalc(char *text, int length);
@@ -77,7 +77,7 @@ int main(){
 //タイマーの設定
 	cout << "Calculation start in the GPU." << endl;
 	cout << "BlockSize\t:\t" << BLOCK_SIZE << "\nGridSize\t:\t" << GRID_SIZE << endl;
-	float millseconds = 0.0f;
+	float millseconds = 0.0f, sum = 0.0f;
 //	float sum = 0.0f;
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -89,12 +89,26 @@ int main(){
 	gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
 	cudaThreadSynchronize();
 
-	cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
+//	/*
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&millseconds, start, stop);
-	cout << "Time required\t:\t" << millseconds << " millseconds" << endl;
+	sum += millseconds;
+	cout << "Time required(pattern hash)\t:\t" << millseconds << " millseconds" << endl;
+
+	cudaEventRecord(start, 0);
+//	*/
+
+	cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	
+//	/*
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&millseconds, start, stop);
+	sum += millseconds;
+	cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
+	
+//	*/
 
 	cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
 
@@ -104,12 +118,27 @@ int main(){
 	textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
 	cudaThreadSynchronize();
 
-	cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
-
+//	/*
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&millseconds, start, stop);
-	cout << "Time required\t:\t" << millseconds << " millseconds" << endl;
+	sum += millseconds;
+	cout << "Time required(text hash)\t:\t" << millseconds << " millseconds" << endl;
+
+	cudaEventRecord(start, 0);
+//	*/
+
+	cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
+
+//	/*
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&millseconds, start, stop);
+	sum += millseconds;
+	cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
+//	*/
+
+	cout << "Time required(sum)\t:\t" << sum << " millseconds" << endl;
 
 //ハッシュ値比較
 	cout << "*Finding..." << endl;
@@ -171,9 +200,9 @@ __global__ void gHashCalc(char *text, int *length, unsigned int *rehash)
 	{
 		rehash[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
 		//		*rehash += ((scan_idx + 1) * RADIX) * text[scan_idx];
-		__syncthreads();
+		//__syncthreads();
 	}
-	__syncthreads();
+	//__syncthreads();
 }
 
 __device__ void dHashCalc(char *text, int *length, unsigned int *rehash)
@@ -200,19 +229,14 @@ __device__ void dHashCalc(char *text, int *length, unsigned int *rehash)
 __global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen)
 {
 	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
-	int loop, scan_idx;
+	int scan_idx;
 
-
-	for (loop = 0; loop < *textlen - *patlen + 1; loop++){
-		//		dHashCalc(&text[scan_idx], patlen, &texthas[scan_idx]);
-		texthas[col_idx] = 0;
-		for (scan_idx = 0; scan_idx < *patlen; scan_idx++){
-			texthas[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
-			__syncthreads();
-		}
-		__syncthreads();
+	texthas[col_idx] = 0;
+	for (scan_idx = 0; scan_idx < *patlen; scan_idx++){
+		texthas[col_idx] += ((scan_idx + 1) * RADIX) * text[col_idx + scan_idx];
+		//__syncthreads();
 	}
-	__syncthreads();
+	//__syncthreads();
 }
 
 void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, int flag [])
@@ -223,7 +247,7 @@ void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern,
 	{
 		if (pathas == texthas[i])
 		{
-			cout << "Found the same hash!" << endl;
+			//cout << "Found the same hash!" << endl;
 			cout << "Text Hash(";
 			for (j = 0; j < patlen; j++) cout << text[i + j];
 			cout << ") = " << texthas[i] << endl;
