@@ -16,17 +16,19 @@ __global__ void gHashCalc(char *text, int *length, unsigned int *rehash);
 __device__ void dHashCalc(char *text, int *length, unsigned int *rehash);
 // void textHash(char *text, int textlen, int texthas [], int patlen);
 __global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *patlen);
-void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, int flag []);
-void Emphasis(char *text, int textlen, int patlen, int flag [], int Count);
-void InsertChar(char *text, char *shift, int flag [], int mem [], int *counter, char *insert);
-void ShiftChar(char *text, char *shift1, char *shift2, int flag [], int mem1 [], int mem2 [], int *counter, int inslen, int looptimes);
+void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, bool flag []);
+__global__ void gHashSearch(char *text, int *textlen, unsigned int *texthas, char *pattern, int *patlen, unsigned int *pathas, bool *flag);
+void Emphasis(char *text, int textlen, int patlen, bool flag [], int Count);
+void InsertChar(char *text, char *shift, bool flag [], bool mem [], int *counter, char *insert);
+void ShiftChar(char *text, char *shift1, char *shift2, bool flag [], bool mem1 [], bool mem2 [], int *counter, int inslen, int looptimes);
 
 int main(){
 	char text[SIZE * 2], pattern[SIZE];
 	string inputtext;
 	int textlen[1], patlen[1];
 	unsigned int texthas[SIZE * 2] = { 0 }, pathas[1] = { 0 };
-	int FoundFlag[SIZE] = { 0 }, FoundCount = 0;
+	bool FoundFlag[SIZE] = { 0 };
+	int FoundCount = 0;
 	int i;
 	cout << "*Please input text." << endl;
 	getline(cin, inputtext);
@@ -52,7 +54,7 @@ int main(){
 	char *dText, *dPattern;
 	unsigned int *dTexthas, *dPathas;
 	int *dTextlen, *dPatlen;
-	//		int *dFoundFlag;
+	bool *dFoundFlag;
 
 	cudaMalloc((void**) &dText, sizeof(char)*SIZE);
 	cudaMemcpy(dText, text, sizeof(char)*SIZE, cudaMemcpyHostToDevice);
@@ -67,8 +69,8 @@ int main(){
 	cudaMalloc((void**) &dPatlen, sizeof(int)*SIZE);
 	cudaMemcpy(dPatlen, patlen, sizeof(int)*SIZE, cudaMemcpyHostToDevice);
 
-	//		cudaMalloc((void**) &dFoundFlag, textlen);
-	//		cudaMemcpy(dFoundFlag, FoundFlag, textlen, cudaMemcpyHostToDevice);
+	cudaMalloc((void**) &dFoundFlag, sizeof(int)*SIZE);
+	cudaMemcpy(dFoundFlag, FoundFlag, sizeof(bool)*SIZE, cudaMemcpyHostToDevice);
 
 
 	dim3 grid(GRID_SIZE);
@@ -143,12 +145,23 @@ int main(){
 //ハッシュ値比較
 	cout << "*Finding..." << endl;
 
-	HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
+	cudaEventRecord(start, 0);
+
+		HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
+	//gHashSearch << <grid, block >> > (dText, dTextlen, dTexthas, dPattern, dPatlen, dPathas, dFoundFlag);
+	//cudaMemcpy(FoundFlag, dFoundFlag, sizeof(bool)*SIZE, cudaMemcpyDeviceToHost);
+
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&millseconds, start, stop);
+	sum += millseconds;
+	cout << "Time required(HashSearch)\t:\t" << millseconds << " millseconds" << endl;
+
 	for (i = 0; i < textlen[0]; i++){
 		//cout << "*Text Hash(";
 		//for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
 		//cout << ") = " << texthas[i] << endl;
-		if (FoundFlag[i] == 1)	FoundCount++;
+		if (FoundFlag[i] == true)	FoundCount++;
 	}
 	cout << "*FoundCount = " << FoundCount << endl;
 	if (FoundCount != 0)
@@ -239,7 +252,27 @@ __global__ void textHash(char *text, int *textlen, unsigned int *texthas, int *p
 	//__syncthreads();
 }
 
-void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, int flag [])
+
+__global__ void gHashSearch(char *text, int *textlen, unsigned int *texthas, char *pattern, int *patlen, unsigned int *pathas, bool *flag)
+{
+	unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (*pathas == texthas[col_idx])
+	{
+	int scan_idx = 0;
+		do{
+			if (text[col_idx + scan_idx] != pattern[scan_idx])	break;
+		} while (++scan_idx < *patlen);
+
+		if (scan_idx == *patlen)
+		{
+			flag[col_idx] = true;
+		}
+	}
+}
+
+
+void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern, int patlen, unsigned int pathas, bool flag [])
 {
 	int i, j;
 
@@ -248,9 +281,10 @@ void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern,
 		if (pathas == texthas[i])
 		{
 			//cout << "Found the same hash!" << endl;
-			cout << "Text Hash(";
+	/*		cout << "Text Hash(";
 			for (j = 0; j < patlen; j++) cout << text[i + j];
 			cout << ") = " << texthas[i] << endl;
+	*/
 			j = 0;
 			do{
 				if (text[i + j] != pattern[j])	break;
@@ -258,17 +292,17 @@ void HashSearch(char *text, int textlen, unsigned int texthas [], char *pattern,
 
 			if (j == patlen)
 			{
-				flag[i] = 1;
+				flag[i] = true;
 			}
 		}
 	}
 }
 
-void Emphasis(char *text, int textlen, int patlen, int flag [], int Count)
+void Emphasis(char *text, int textlen, int patlen, bool flag [], int Count)
 {
 	int i, looptimes;
 	char shift1[SIZE], shift2[SIZE];
-	int mem1[SIZE * 2], mem2[SIZE * 2];
+	bool mem1[SIZE * 2], mem2[SIZE * 2];
 	char insert1 [] = " << ", insert2 [] = " >> ";
 	int inslen = strlen(insert1);
 
@@ -276,7 +310,7 @@ void Emphasis(char *text, int textlen, int patlen, int flag [], int Count)
 
 	for (i = 0; i < textlen - patlen + (8 * Count); i++)
 	{
-		if (flag[i] == 1)
+		if (flag[i] == true)
 		{
 			InsertChar(text, shift1, flag, mem1, &i, insert1);
 			ShiftChar(text, shift1, shift2, flag, mem1, mem2, &i, inslen, looptimes);
@@ -289,7 +323,7 @@ void Emphasis(char *text, int textlen, int patlen, int flag [], int Count)
 	}
 }
 
-void InsertChar(char *text, char *shift, int flag [], int mem [], int *counter, char *insert)
+void InsertChar(char *text, char *shift, bool flag [], bool mem [], int *counter, char *insert)
 {
 	int inslen = strlen(insert), j;
 	for (j = 0; j < inslen; j++)
@@ -304,7 +338,7 @@ void InsertChar(char *text, char *shift, int flag [], int mem [], int *counter, 
 	*counter += inslen;
 }
 
-void ShiftChar(char *text, char *shift1, char *shift2, int flag [], int mem1 [], int mem2 [], int *counter, int inslen, int looptimes)
+void ShiftChar(char *text, char *shift1, char *shift2, bool flag [], bool mem1 [], bool mem2 [], int *counter, int inslen, int looptimes)
 {
 	int j;
 	for (j = 0; j < looptimes; j++)
