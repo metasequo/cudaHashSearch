@@ -6,7 +6,7 @@
 using namespace std;
 
 #define	RADIX 257
-#define SIZE 8192
+#define SIZE 9216
 #define BLOCK_SIZE 512
 #define GRID_SIZE 16
 
@@ -35,6 +35,7 @@ int main(){
 	const char *convert = inputtext.c_str();
 	strcpy(text, convert);
 	textlen[0] = strlen(text);
+	cout << textlen[0] << endl;
 
 	do{
 		cout << endl << "*Please input pattern." << endl;
@@ -147,7 +148,7 @@ int main(){
 
 	cudaEventRecord(start, 0);
 
-		HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
+	HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
 	//gHashSearch << <grid, block >> > (dText, dTextlen, dTexthas, dPattern, dPatlen, dPathas, dFoundFlag);
 	//cudaMemcpy(FoundFlag, dFoundFlag, sizeof(bool)*SIZE, cudaMemcpyDeviceToHost);
 
