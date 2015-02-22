@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <string>
 
 #include <cuda_runtime.h>
@@ -51,7 +51,7 @@ int main(){
 		}
 	} while (textlen[0] < patlen[0]);
 
-	//GPU—p•Ï”
+	//GPUç”¨å¤‰æ•°
 	char *dText, *dPattern;
 	unsigned int *dTexthas, *dPathas;
 	int *dTextlen, *dPatlen;
@@ -77,7 +77,7 @@ int main(){
 	dim3 grid(GRID_SIZE);
 	dim3 block(BLOCK_SIZE);
 
-//ƒ^ƒCƒ}[‚ÌÝ’è
+//ã‚¿ã‚¤ãƒžãƒ¼ã®è¨­å®š
 	cout << "Calculation start in the GPU." << endl;
 	cout << "BlockSize\t:\t" << BLOCK_SIZE << "\nGridSize\t:\t" << GRID_SIZE << endl;
 	float millseconds = 0.0f, sum = 0.0f;
@@ -86,7 +86,7 @@ int main(){
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 
-//ƒpƒ^[ƒ“‚ÌƒnƒbƒVƒ…’lŒvŽZ
+//ãƒ‘ã‚¿ãƒ¼ãƒ³ã®ãƒãƒƒã‚·ãƒ¥å€¤è¨ˆç®—
 	cudaEventRecord(start, 0);
 
 	gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
@@ -115,7 +115,7 @@ int main(){
 
 	cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
 
-//ƒeƒLƒXƒg‚ÌƒnƒbƒVƒ…’lŒvŽZ
+//ãƒ†ã‚­ã‚¹ãƒˆã®ãƒãƒƒã‚·ãƒ¥å€¤è¨ˆç®—
 	cudaEventRecord(start, 0);
 
 	textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
@@ -143,7 +143,7 @@ int main(){
 
 	cout << "Time required(sum)\t:\t" << sum << " millseconds" << endl;
 
-//ƒnƒbƒVƒ…’l”äŠr
+//ãƒãƒƒã‚·ãƒ¥å€¤æ¯”è¼ƒ
 	cout << "*Finding..." << endl;
 
 	cudaEventRecord(start, 0);
