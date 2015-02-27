@@ -31,15 +31,15 @@ int main(){
 	bool FoundFlag[SIZE] = { 0 };
 	int FoundCount = 0;
 	int i;
-	cout << "*Please input text." << endl;
+//	cout << "*Please input text." << endl;
 	getline(cin, inputtext);
 	const char *convert = inputtext.c_str();
 	strcpy(text, convert);
 	textlen[0] = strlen(text);
-	cout << textlen[0] << endl;
+//	cout << textlen[0] << endl;
 
 	do{
-		cout << endl << "*Please input pattern." << endl;
+//		cout << endl << "*Please input pattern." << endl;
 		getline(cin, inputtext);
 		convert = inputtext.c_str();
 		strcpy(pattern, convert);
@@ -197,7 +197,7 @@ int main(){
 
 
 	}
-
+/*
 	for (i = 0; i < textlen[0]; i++){
 		//cout << "*Text Hash(";
 		//for (int j = 0; j < patlen[0]; j++) cout << text[i + j];
@@ -215,6 +215,8 @@ int main(){
 		cout << endl << "**Not found**" << endl;
 	}
 
+*/
+	
 	cudaFree(dText);
 	cudaFree(dPattern);
 	cudaFree(dTexthas);
