@@ -8,7 +8,8 @@ using namespace std;
 #define	RADIX 257
 #define SIZE 9216
 #define BLOCK_SIZE 512
-#define GRID_SIZE 16
+#define GRID_SIZE 64
+#define LOOP_NUM 100
 
 //int HashCalc(char *text, int length);
 __host__ void hHashCalc(char *text, int length, unsigned int *rehash);
@@ -74,89 +75,128 @@ int main(){
 	cudaMemcpy(dFoundFlag, FoundFlag, sizeof(bool)*SIZE, cudaMemcpyHostToDevice);
 
 
-	dim3 grid(GRID_SIZE);
-	dim3 block(BLOCK_SIZE);
+	for (int cnt = 1; cnt <= GRID_SIZE * BLOCK_SIZE; cnt++){
+		float Time_pathas = 0;
+		float Time_memcpy1 = 0;
+		float Time_texthas = 0;
+		float Time_memcpy2 = 0;
+		float Time_sum = 0;
+		float Time_HashSearch = 0;
 
-//タイマーの設定
-	cout << "Calculation start in the GPU." << endl;
-	cout << "BlockSize\t:\t" << BLOCK_SIZE << "\nGridSize\t:\t" << GRID_SIZE << endl;
-	float millseconds = 0.0f, sum = 0.0f;
-//	float sum = 0.0f;
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
+		dim3 grid(GRID_SIZE * BLOCK_SIZE / cnt);
+		dim3 block(cnt);
+		while (GRID_SIZE * BLOCK_SIZE % cnt != 0)
+		{
+			cnt++;
+			dim3 grid(GRID_SIZE * BLOCK_SIZE / cnt);
+			dim3 block(cnt);
+		}
 
-//パターンのハッシュ値計算
-	cudaEventRecord(start, 0);
+		//タイマーの設定
+		//		cout << "Calculation start in the GPU." << endl;
+		//		cout << "BlockSize\t:\t" << GRID_SIZE * BLOCK_SIZE / cnt << "\nGridSize\t:\t" << cnt << endl;
+		cout << "BlockSize," << GRID_SIZE * BLOCK_SIZE / cnt << "\nGridSize," << cnt << endl;
+		//	float sum = 0.0f;
 
-	gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
-	cudaThreadSynchronize();
+		for (int loopcnt = 0; loopcnt < LOOP_NUM; loopcnt++){
+/*			if (loopcnt == 50){
+				dim3 grid(cnt);
+			}
+			*/
+			cudaEvent_t start, stop;
+			cudaEventCreate(&start);
+			cudaEventCreate(&stop);
+			float millseconds = 0.0f, sum = 0.0f;
 
-//	/*
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&millseconds, start, stop);
-	sum += millseconds;
-	cout << "Time required(pattern hash)\t:\t" << millseconds << " millseconds" << endl;
+			//パターンのハッシュ値計算
+			cudaEventRecord(start, 0);
 
-	cudaEventRecord(start, 0);
-//	*/
+			gHashCalc <<<grid, block>>> (dPattern, dPatlen, dPathas);
+			cudaThreadSynchronize();
 
-	cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-	
-//	/*
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&millseconds, start, stop);
-	sum += millseconds;
-	cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
-	
-//	*/
+			//	/*
+			cudaEventRecord(stop, 0);
+			cudaEventSynchronize(stop);
+			cudaEventElapsedTime(&millseconds, start, stop);
+			sum += millseconds;
+			Time_pathas += millseconds;
+			//		cout << "Time required(pattern hash)\t:\t" << millseconds << " millseconds" << endl;
 
-	cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
+			cudaEventRecord(start, 0);
+			//	*/
 
-//テキストのハッシュ値計算
-	cudaEventRecord(start, 0);
+			cudaMemcpy(pathas, dPathas, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
-	textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
-	cudaThreadSynchronize();
+			//	/*
+			cudaEventRecord(stop, 0);
+			cudaEventSynchronize(stop);
+			cudaEventElapsedTime(&millseconds, start, stop);
+			sum += millseconds;
+			Time_memcpy1 += millseconds;
+			//		cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
 
-//	/*
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&millseconds, start, stop);
-	sum += millseconds;
-	cout << "Time required(text hash)\t:\t" << millseconds << " millseconds" << endl;
+			//	*/
 
-	cudaEventRecord(start, 0);
-//	*/
+			//		cout << endl << "*Pattern Hash(" << pattern << ") = " << pathas[0] << endl << endl;
 
-	cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
+			//テキストのハッシュ値計算
+			cudaEventRecord(start, 0);
 
-//	/*
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&millseconds, start, stop);
-	sum += millseconds;
-	cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
-//	*/
+			textHash <<<grid, block>>> (dText, dTextlen, dTexthas, dPatlen);
+			cudaThreadSynchronize();
 
-	cout << "Time required(sum)\t:\t" << sum << " millseconds" << endl;
+			//	/*
+			cudaEventRecord(stop, 0);
+			cudaEventSynchronize(stop);
+			cudaEventElapsedTime(&millseconds, start, stop);
+			sum += millseconds;
+			Time_texthas += millseconds;
+			//		cout << "Time required(text hash)\t:\t" << millseconds << " millseconds" << endl;
 
-//ハッシュ値比較
-	cout << "*Finding..." << endl;
+			cudaEventRecord(start, 0);
+			//	*/
 
-	cudaEventRecord(start, 0);
+			cudaMemcpy(texthas, dTexthas, sizeof(unsigned int)*SIZE, cudaMemcpyDeviceToHost);
 
-	HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
-	//gHashSearch << <grid, block >> > (dText, dTextlen, dTexthas, dPattern, dPatlen, dPathas, dFoundFlag);
-	//cudaMemcpy(FoundFlag, dFoundFlag, sizeof(bool)*SIZE, cudaMemcpyDeviceToHost);
+			//	/*
+			cudaEventRecord(stop, 0);
+			cudaEventSynchronize(stop);
+			cudaEventElapsedTime(&millseconds, start, stop);
+			sum += millseconds;
+			Time_memcpy2 += millseconds;
+			//		cout << "Time required(memcpy)\t:\t" << millseconds << " millseconds" << endl;
+			//	*/
 
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&millseconds, start, stop);
-	sum += millseconds;
-	cout << "Time required(HashSearch)\t:\t" << millseconds << " millseconds" << endl;
+			Time_sum += sum;
+			//		cout << "Time required(sum)\t:\t" << sum << " millseconds" << endl;
+
+			//ハッシュ値比較
+			//		cout << "*Finding..." << endl;
+
+			cudaEventRecord(start, 0);
+
+			HashSearch(text, textlen[0], texthas, pattern, patlen[0], pathas[0], FoundFlag);
+			//gHashSearch << <grid, block >> > (dText, dTextlen, dTexthas, dPattern, dPatlen, dPathas, dFoundFlag);
+			//cudaMemcpy(FoundFlag, dFoundFlag, sizeof(bool)*SIZE, cudaMemcpyDeviceToHost);
+
+			cudaEventRecord(stop, 0);
+			cudaEventSynchronize(stop);
+			cudaEventElapsedTime(&millseconds, start, stop);
+			sum += millseconds;
+			Time_HashSearch += millseconds;
+			//		cout << "Time required(HashSearch)\t:\t" << millseconds << " millseconds" << endl;
+
+		}
+		cout << "Time required(pattern hash)," << Time_pathas / LOOP_NUM << endl;
+		cout << "Time required(memcpy1)," << Time_memcpy1 / LOOP_NUM << endl;
+		cout << "Time required(text hash)," << Time_texthas / LOOP_NUM << endl;
+		cout << "Time required(memcpy2)," << Time_memcpy2 / LOOP_NUM << endl;
+		cout << "Time required(sum)," << Time_sum / LOOP_NUM << endl;
+		cout << "Time required(HashSearch)," << Time_HashSearch / LOOP_NUM << endl;
+
+
+
+	}
 
 	for (i = 0; i < textlen[0]; i++){
 		//cout << "*Text Hash(";
